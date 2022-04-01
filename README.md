@@ -18,4 +18,5 @@
 //TODO
 
 ## Preview
-//TODO
+![preview1](wireless-car-preview-1.jpeg)
+![preview2](wireless-car-preview-2.jpeg)
