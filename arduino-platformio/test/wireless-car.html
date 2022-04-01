@@ -1,0 +1,275 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+    <meta http-equiv="x-ua-compatible" content="IE=edge" />
+    <title>ESP32 Wireless Car</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+        }
+
+        .panel-stream {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 0;
+            background-color: black;
+        }
+
+        .panel-controll {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 0;
+            /* background-color: rgb(70, 47, 79); */
+        }
+
+        select {
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            line-height: 3rem;
+            position: absolute;
+            top: 2rem;
+            left: 7rem;
+            width: 11rem;
+            height: 3rem;
+            padding-left: 0.5rem;
+        }
+
+        button {
+            border: 1px solid rgb(139, 170, 206);
+            background-color: rgb(32, 128, 218);
+            color: white;
+            border-radius: 1.2rem;
+            width: 3.5rem;
+            height: 3.5rem;
+            line-height: 3rem;
+            font-size: 1.5rem;
+
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -o-user-select: none;
+            /* pointer-events: none; */
+        }
+
+        button:active {
+            color: rgb(207, 207, 207);
+        }
+
+        #btn-toggle-stream {
+            background-color: seagreen;
+            border-color: darkseagreen;
+            border-radius: 0.5rem;
+            position: absolute;
+            top: 2rem;
+            left: 2rem;
+            width: 4rem;
+            height: 3rem;
+            font-size: 0.8rem;
+            line-height: 1rem;
+        }
+
+        #btn-left {
+            position: absolute;
+            bottom: 6rem;
+            left: 2rem;
+        }
+
+        #btn-right {
+            position: absolute;
+            bottom: 6rem;
+            left: 10rem;
+        }
+
+        #btn-forward {
+            position: absolute;
+            bottom: 10rem;
+            left: 6rem;
+        }
+
+        #btn-backward {
+            position: absolute;
+            bottom: 2rem;
+            left: 6rem;
+        }
+
+        #btn-stop {
+            position: absolute;
+            bottom: 6rem;
+            left: 6rem;
+            background-color: indianred;
+            border-color: lightpink;
+            font-size: 1rem;
+            border-radius: 1.6rem;
+        }
+
+        img {
+            position: absolute;
+            background-color: darkolivegreen;
+            border-radius: 20px;
+            display: none;
+            width: 100%;
+            height: 100%;
+            /* width: 200%;
+            height: 200%;
+            left: -50%;
+            top: -50%;
+            -moz-transform: rotate(-90deg);
+            -webkit-transform: rotate(-90deg);
+            filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=3); */
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function (event) {
+            const frameSizeConfig = [
+                { "code": "10", "desc": "UXGA", "width": 1600, "height": 1200 },
+                { "code": "9", "desc": "SXGA", "width": 1280, "height": 1024 },
+                { "code": "8", "desc": "XGA", "width": 1024, "height": 768 },
+                { "code": "7", "desc": "SVGA", "width": 800, "height": 600 },
+                { "code": "6", "desc": "VGA", "width": 640, "height": 480 },
+                { "code": "5", "desc": "CIF", "width": 400, "height": 296 },
+                { "code": "4", "desc": "QVGA", "width": 320, "height": 240 },
+                { "code": "3", "desc": "HQVGA", "width": 240, "height": 176 },
+                { "code": "0", "desc": "QQVGA", "width": 160, "height": 120 }
+            ]
+
+            var baseHost = document.location.origin
+            var streamUrl = baseHost + ':81'
+            const view = document.getElementById('stream')
+            const streamButton = document.getElementById('btn-toggle-stream')
+            const framesizeSel = document.getElementById('sel-framesize')
+            const leftButton = document.getElementById('btn-left')
+            const rightButton = document.getElementById('btn-right')
+            const forwardButton = document.getElementById('btn-forward')
+            const backwardButton = document.getElementById('btn-backward')
+            const stopButton = document.getElementById('btn-stop')
+
+
+            const stopStream = () => {
+                window.stop();
+                view.style.display = 'none'
+                // view.src = ''
+                streamButton.innerHTML = 'Start Stream'
+            }
+
+            const startStream = () => {
+                view.src = `${streamUrl}/stream`
+                // view.src = './preview.jpeg'
+                view.style.display = 'block'
+                streamButton.innerHTML = 'Stop Stream'
+            }
+
+            const fnStreamToggle = () => {
+                const streamEnabled = streamButton.innerHTML === 'Stop Stream'
+                if (streamEnabled) {
+                    stopStream()
+                } else {
+                    startStream()
+                }
+            }
+
+            const sendCmd = (code, value) => {
+                console.log(`send cmd: ${code}=${value}`)
+                const query = `${baseHost}/control?var=${code}&val=${value}`
+                fetch(query).then(response => {
+                    console.log(`request to ${query} finished, status: ${response.status}`)
+                })
+            }
+
+            const getFrameSizeConfig = (code) => {
+                for (let index = 0, len = frameSizeConfig.length; index < len; index++) {
+                    const element = frameSizeConfig[index]
+                    if (element.code == code) {
+                        return element
+                    }
+                }
+                return null
+            }
+
+            const changeStreamSize = () => {
+                const frameConfig = getFrameSizeConfig(framesizeSel.value)
+                const winWidth = document.body.clientWidth
+                const winHeight = document.body.clientHeight
+                const winRatio = winWidth / winHeight
+                const frameRatio = frameConfig.width / frameConfig.height
+                let w = winWidth
+                let h = winHeight
+                if (winWidth >= winHeight) {
+                    if (winRatio < frameRatio) {
+                        w = winWidth - 40
+                        h = w / frameRatio
+                    } else {
+                        h = winHeight - 40
+                        w = h * frameRatio
+                    }
+                    view.style.top = '20px'
+                    view.style.right = '20px'
+                } else {
+                    w = winWidth - 40
+                    h = w / frameRatio
+                    view.style.top = '7em'
+                    view.style.right = '20px'
+                }
+                view.style.width = `${w.toFixed(0)}px`
+                view.style.height = `${h.toFixed(0)}px`
+            }
+
+            streamButton.addEventListener('click', fnStreamToggle)
+            leftButton.addEventListener('click', () => sendCmd("move", "1"))
+            rightButton.addEventListener('click', () => sendCmd("move", "2"))
+            forwardButton.addEventListener('click', () => sendCmd("move", "3"))
+            backwardButton.addEventListener('click', () => sendCmd("move", "4"))
+            stopButton.addEventListener('click', () => sendCmd("move", "0"))
+            framesizeSel.addEventListener('change', () => {
+                changeStreamSize()
+                sendCmd("framesize", framesizeSel.value)
+            })
+
+            var frameOpsStr = '';
+            frameSizeConfig.forEach(e => frameOpsStr += `<option value="${e.code}">${e.desc}(${e.width}x${e.height})</option>`)
+            framesizeSel.innerHTML = frameOpsStr
+            framesizeSel.value = "5"
+            changeStreamSize()
+            window.onresize = changeStreamSize
+        })
+    </script>
+</head>
+
+<body οncοntextmenu="return false" onselectstart="return false" οndragstart="return false" οncοpy="return false"
+    oncut="return false;">
+    <div>
+        <div class="panel-stream">
+            <img id="stream" src="">
+        </div>
+        <div class="panel-controll">
+            <button id="btn-toggle-stream">Start Stream</button>
+            <select id="sel-framesize"></select>
+            <button id="btn-left">&lt;</button>
+            <button id="btn-right">&gt;</button>
+            <button id="btn-forward">^</button>
+            <button id="btn-backward">v</button>
+            <button id="btn-stop"></button>
+        </div>
+    </div>
+</body>
+
+</html>
